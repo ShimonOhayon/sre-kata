@@ -5,5 +5,4 @@ class CountReocurrenceChar():
 
     def run(self):
         '''Class entrypoint'''
-        amount = [ char for char in self.param if self.param.count(char) > 1 ]
-        return len(set(amount))
+        return len({ char for char in self.param if self.param.count(char) > 1 })

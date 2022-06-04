@@ -17,7 +17,7 @@ def get():
         logging.error(result)
         status = 500
     else:
-        result = 'Reasult: The amount of reoccurrence characters in %s is %s' % \
+        result = 'Reasult: The amount of reoccurrence characters in %s is %s!' % \
             (param, CountReocurrenceChar(param).run())
         logging.info(result)
         status = 200
