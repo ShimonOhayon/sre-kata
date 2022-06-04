@@ -1,0 +1,73 @@
+name: Release
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'app/**'
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  SERVICE_NAME: sre-kata
+  AWS_REGION: eu-west-1
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: v
+          fetch_all_tags: true
+
+      - name: configure aws root account credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: login to AWS ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: docker build and push
+        run: |-
+          SERVICE_NAME=${{ env.SERVICE_NAME }}             \
+          AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}     \
+          AWS_REGION=${{ env.AWS_REGION }}             \
+          VERSION=${{ steps.tag_version.outputs.new_tag }} \
+           ./.github/scripts/docker.sh
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false
+        working-directory: terraform
+
+      - name: update app runner
+        run: |-
+          terraform apply                                                 \
+            -input=false --auto-approve                                   \
+            -var service_version=${{ steps.tag_version.outputs.new_tag }} \
+            -var service_name=${{ env.SERVICE_NAME}}
+        working-directory: terraform
+
+      - name: Get Service url
+        id: service_url
+        run: echo "::set-output name=url::$(terraform output service_url)"
+        working-directory: terraform
+
+      - name: Test it out!
+        run: echo "https://${{ steps.service_url.outputs.url }}/query?param=1Shimoon1111"

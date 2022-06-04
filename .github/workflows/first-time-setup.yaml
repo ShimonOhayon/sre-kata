@@ -1,0 +1,75 @@
+name: First Time Setup
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  SERVICE_NAME: sre-kata
+  SERVICE_VERSION: v0.0.1
+  AWS_REGION: eu-west-1
+
+jobs:
+  First-Time-Setup:
+    name: First Time Setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: configure aws root account credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false
+        working-directory: terraform
+
+      - name: Create ECR and IAM role
+        run: |-
+          terraform apply                                            \
+            --target=aws_ecr_repository.sre-kata                     \
+            --target=aws_iam_role.role                               \
+            --target=aws_iam_role_policy_attachment.apprunner-attach \
+            -var service_version=${{ env.SERVICE_VERSION}}           \
+            -var service_name=${{ env.SERVICE_NAME}}                 \
+            -input=false --auto-approve
+        working-directory: terraform
+
+      - name: login to AWS ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: docker build and push
+        run: |-
+          SERVICE_NAME=${{ env.SERVICE_NAME }}         \
+          AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }} \
+          AWS_REGION=${{ env.AWS_REGION }}         \
+          VERSION=${{ env.SERVICE_VERSION }}           \
+           ./.github/scripts/docker.sh
+
+      - name: Create the AWS App runner
+        run: |-
+          terraform apply                                  \
+            --auto-approve                                 \
+            -var service_version=${{ env.SERVICE_VERSION}} \
+            -var service_name=${{ env.SERVICE_NAME}}       \
+            -input=false
+        working-directory: terraform
+
+      - name: Get Service url
+        id: service_url
+        run: echo "::set-output name=url::$(terraform output service_url)"
+        working-directory: terraform
+
+      - name: Test it out!
+        run: echo "https://${{ steps.service_url.outputs.url }}/query?param=1Shimon1111xx"

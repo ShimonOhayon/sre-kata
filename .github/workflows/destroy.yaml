@@ -1,0 +1,42 @@
+name: Destroy
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  SERVICE_NAME: sre-kata
+  SERVICE_VERSION: v0.0.1
+  AWS_REGION: eu-west-1
+
+jobs:
+  destroy:
+    name: Destroy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: configure aws root account credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform init
+        run: terraform init -input=false
+        working-directory: terraform
+
+      - name: Terraform Destroy
+        run: |-
+          terraform destroy                                 \
+             -var service_version=${{ env.SERVICE_VERSION}} \
+             -var service_name=${{ env.SERVICE_NAME}}       \
+             --auto-approve
+        working-directory: terraform
