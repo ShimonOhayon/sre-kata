@@ -68,7 +68,7 @@ I've created before hand the S3 backend and dynamoDB Table for the remote state.
 
 ### GitHub Actions, Release and CI/CD
 
-There are 2 workflow. The [First Time Setup](https://github.com/ohayonshimon/re-kata/actions/workflows/run-once.yaml) is design to create the ECR and IAM role before the App Runner code is beeing applied.
+There are 2 workflow. The [First Time Setup](https://github.com/ohayonshimon/sre-kata/actions/workflows/run-once.yaml) is design to create the ECR and IAM role before the App Runner code is beeing applied.
 
 Also App Runner will fail if there isn't Image ready in the asigned repository. so a Docker build and push are needed as well.
 
